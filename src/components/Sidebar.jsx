@@ -156,7 +156,7 @@ export default function Sidebar({
                             {aiRecommendation ? (
                                 <div className="rec-station-card" onClick={() => onSelectStation(aiRecommendation.id)}>
                                     <div className="rec-title">{aiRecommendation.name}</div>
-                                    <div style={{ display: 'flex', align-items: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
                                         <EnergySourceBadge energySource={aiRecommendation.energySource} />
                                         <span style={{ fontSize: '12px', color: 'var(--accent-green)', fontWeight: '700' }}>
                                             -{calculateCarbonSavings(aiRecommendation).savingPercentage}% CO₂
