@@ -1,10 +1,9 @@
 /**
- * EcoMove AI - Charging Station Database & Utilities
+ * EcoMove AI - Charging Station Database & Utilities (React Module)
  */
 
 // Grid Carbon Intensity averages by state in India (g CO2 per kWh)
-// Source: CEA (Central Electricity Authority) CO2 Baseline Database for Indian Power Sector (approx averages)
-const STATE_GRID_CARBON_INTENSITY = {
+export const STATE_GRID_CARBON_INTENSITY = {
     "Karnataka": 650,
     "Maharashtra": 720,
     "Delhi": 780,
@@ -18,39 +17,39 @@ const STATE_GRID_CARBON_INTENSITY = {
 };
 
 // Energy Source classifications and their estimated carbon intensity (g CO2/kWh)
-const ENERGY_SOURCES = {
+export const ENERGY_SOURCES = {
     "Solar-powered": {
         name: "Solar-powered",
         icon: "☀️",
-        carbon: 30, // Life-cycle emissions only
+        carbon: 30,
         description: "Powered directly by on-site solar panels. Near-zero operational emissions.",
         class: "pure-renewable"
     },
     "Solar + Battery": {
         name: "Solar + Battery",
         icon: "🔋☀️",
-        carbon: 45, // Direct solar + storage life-cycle
+        carbon: 45,
         description: "On-site solar power stored in batteries. Available day and night.",
         class: "pure-renewable"
     },
     "Wind / verified renewable supply": {
         name: "Wind / verified renewable supply",
         icon: "🌬️",
-        carbon: 25, // Green tariffs / direct wind PPA
+        carbon: 25,
         description: "Backed by 100% wind energy contracts or verified green tariffs.",
         class: "pure-renewable"
     },
     "Solar + Grid": {
         name: "Solar + Grid",
         icon: "☀️🔌",
-        carbon: 350, // Hybrid blend (assumed 50% solar, 50% grid)
+        carbon: 350,
         description: "Hybrid charging. Uses solar when available, supplemented by grid power.",
         class: "hybrid-green"
     },
     "Grid-connected": {
         name: "Grid-connected",
         icon: "🔌",
-        carbon: -1, // Calculated dynamically based on state grid intensity
+        carbon: -1, // Dynamically computed
         description: "Powered by the standard electrical grid. Carbon impact depends on regional energy mix.",
         class: "standard-grid"
     },
@@ -63,9 +62,8 @@ const ENERGY_SOURCES = {
     }
 };
 
-// High-fidelity preloaded database of charging stations in India
-const INITIAL_STATIONS = [
-    // BENGALURU (Karnataka)
+// Preloaded database of charging stations in India
+export const INITIAL_STATIONS = [
     {
         id: "BLR-001",
         name: "Zeon Charging - Electronic City Hub",
@@ -141,8 +139,6 @@ const INITIAL_STATIONS = [
         energySource: "Energy source unknown",
         statusAlerts: "Maintenance in progress."
     },
-
-    // DELHI (NCR)
     {
         id: "DEL-001",
         name: "ChargeZone - IGI Airport T3",
@@ -203,8 +199,6 @@ const INITIAL_STATIONS = [
         energySource: "Grid-connected",
         statusAlerts: "Standard Delhi Grid. Current carbon intensity is high."
     },
-
-    // MUMBAI (Maharashtra)
     {
         id: "BOM-001",
         name: "Tata Power EZ Charge - BKC G Block",
@@ -250,8 +244,6 @@ const INITIAL_STATIONS = [
         energySource: "Energy source unknown",
         statusAlerts: "Standard grid charging."
     },
-
-    // CHENNAI (Tamil Nadu)
     {
         id: "MAA-001",
         name: "Zeon Charging - Guindy Industrial Estate",
@@ -297,8 +289,6 @@ const INITIAL_STATIONS = [
         energySource: "Grid-connected",
         statusAlerts: "Standard Tamil Nadu grid power."
     },
-
-    // HYDERABAD (Telangana)
     {
         id: "HYD-001",
         name: "ChargeZone - Gachibowli IT Hub",
@@ -348,40 +338,27 @@ const INITIAL_STATIONS = [
 
 /**
  * Calculates the estimated carbon intensity of a station's power source (g CO2/kWh)
- * @param {object} station - The charging station object
- * @returns {number} - Carbon intensity in g CO2 / kWh
  */
-function getStationCarbonIntensity(station) {
+export function getStationCarbonIntensity(station) {
     const energyData = ENERGY_SOURCES[station.energySource] || ENERGY_SOURCES["Energy source unknown"];
     
-    // If it has a fixed renewable value, return it
     if (energyData.carbon !== -1) {
         return energyData.carbon;
     }
     
-    // Otherwise, compute it based on the regional grid intensity
     const stateGridVal = STATE_GRID_CARBON_INTENSITY[station.state] || STATE_GRID_CARBON_INTENSITY["Default"];
-    
-    if (station.energySource === "Grid-connected") {
-        return stateGridVal;
-    }
-    
-    // Unknown or invalid source is penalized to default grid rate
     return stateGridVal;
 }
 
 /**
  * Calculates the estimated carbon savings compared to standard Indian grid baseline (700g CO2/kWh)
- * @param {object} station - The charging station object
- * @param {number} kwhCharged - The energy charged in kWh (default: 40 kWh for a standard EV session)
- * @returns {object} - { savingsKg: number, savingPercentage: number, intensity: number }
  */
-function calculateCarbonSavings(station, kwhCharged = 40) {
-    const baselineIntensity = STATE_GRID_CARBON_INTENSITY["Default"]; // Standard Grid baseline (700g/kWh)
+export function calculateCarbonSavings(station, kwhCharged = 40) {
+    const baselineIntensity = STATE_GRID_CARBON_INTENSITY["Default"];
     const stationIntensity = getStationCarbonIntensity(station);
     
-    const baselineEmissions = baselineIntensity * kwhCharged; // grams
-    const stationEmissions = stationIntensity * kwhCharged; // grams
+    const baselineEmissions = baselineIntensity * kwhCharged;
+    const stationEmissions = stationIntensity * kwhCharged;
     
     const savingsGrams = Math.max(0, baselineEmissions - stationEmissions);
     const savingsKg = (savingsGrams / 1000).toFixed(2);
@@ -396,14 +373,11 @@ function calculateCarbonSavings(station, kwhCharged = 40) {
 
 /**
  * Parses CSV file content to import a new set of stations
- * @param {string} csvText - Raw CSV text
- * @returns {array} - Array of station objects
  */
-function parseCSVStations(csvText) {
+export function parseCSVStations(csvText) {
     const lines = csvText.split(/\r?\n/);
     if (lines.length < 2) return [];
     
-    // Simple header extraction
     const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
     const stations = [];
     
@@ -411,7 +385,6 @@ function parseCSVStations(csvText) {
         const line = lines[i].trim();
         if (!line) continue;
         
-        // Match comma-separated values, respecting quotes
         const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
         const values = matches.map(v => v.trim().replace(/^["']|["']$/g, ''));
         
@@ -427,7 +400,6 @@ function parseCSVStations(csvText) {
             }
         });
         
-        // Ensure default properties
         if (station.name && station.latitude && station.longitude) {
             station.id = station.id || `IMP-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
             station.operator = station.operator || "Unknown Operator";
@@ -438,7 +410,6 @@ function parseCSVStations(csvText) {
             station.chargingPower = station.chargingPower || 22;
             station.availability = station.availability || "Available";
             
-            // Validate energy source, map to official types
             const src = station.energySource;
             if (ENERGY_SOURCES[src]) {
                 station.energySource = src;
@@ -463,13 +434,3 @@ function parseCSVStations(csvText) {
     
     return stations;
 }
-
-// Export modules globally for simple static file usage in index.html/app.js
-window.EcoData = {
-    STATE_GRID_CARBON_INTENSITY,
-    ENERGY_SOURCES,
-    INITIAL_STATIONS,
-    getStationCarbonIntensity,
-    calculateCarbonSavings,
-    parseCSVStations
-};
