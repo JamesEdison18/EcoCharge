@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoMove AI - Renewable-Aware EV Charging Platform</title>
+    <meta name="description" content="EcoMove AI helps EV drivers locate low-carbon and renewable-energy-backed charging stations across India. Reduce your carbon footprint with smart, grid-aware charging recommendation engine.">
+    
+    <!-- CSS Dependencies -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div class="app-container" id="app-container">
+        <!-- Sidebar Navigation & Filters -->
+        <aside class="sidebar" role="complementary" aria-label="EcoMove Sidebar">
+            <!-- Header Brand -->
+            <header class="brand-header">
+                <div class="logo">
+                    <i class="fa-solid fa-leaf logo-icon"></i>
+                    <h1 id="brand-title">EcoMove <span>AI</span></h1>
+                </div>
+                <div class="badge-pure-renewable energy-badge" style="font-size: 10px; padding: 2px 6px;">
+                    Prototype
+                </div>
+            </header>
+
+            <!-- Navigation Tabs -->
+            <nav class="nav-tabs" role="tablist">
+                <button class="tab-btn active" id="tab-explore" role="tab" aria-selected="true" aria-controls="panel-explore" onclick="switchTab('explore')">
+                    <i class="fa-solid fa-magnifying-glass-location"></i> Explore
+                </button>
+                <button class="tab-btn" id="tab-ai" role="tab" aria-selected="false" aria-controls="panel-ai" onclick="switchTab('ai')">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> AI Insights
+                </button>
+                <button class="tab-btn" id="tab-data" role="tab" aria-selected="false" aria-controls="panel-data" onclick="switchTab('data')">
+                    <i class="fa-solid fa-database"></i> Data Tools
+                </button>
+            </nav>
+
+            <!-- Sidebar Panels -->
+            <div class="sidebar-content">
+                <!-- Panel 1: Explore & Filter -->
+                <section class="tab-panel active" id="panel-explore" role="tabpanel" aria-labelledby="tab-explore">
+                    <!-- Search Input -->
+                    <div class="search-container">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" class="search-input" id="search-bar" placeholder="Search by city, state, or operator..." oninput="handleSearch()">
+                    </div>
+
+                    <!-- Energy Source Filters -->
+                    <div class="filter-group">
+                        <span class="filter-title">Renewable Status / Energy Source</span>
+                        <div class="filter-pills" id="energy-filter-group">
+                            <button class="filter-pill active" onclick="setEnergyFilter('all')">
+                                All
+                            </button>
+                            <button class="filter-pill" onclick="setEnergyFilter('Solar-powered')">
+                                ☀️ Solar
+                            </button>
+                            <button class="filter-pill" onclick="setEnergyFilter('Solar + Battery')">
+                                🔋 Solar+Battery
+                            </button>
+                            <button class="filter-pill" onclick="setEnergyFilter('Wind / verified renewable supply')">
+                                🌬️ Wind
+                            </button>
+                            <button class="filter-pill" onclick="setEnergyFilter('Solar + Grid')">
+                                ☀️🔌 Hybrid
+                            </button>
+                            <button class="filter-pill" onclick="setEnergyFilter('Grid-connected')">
+                                🔌 Grid
+                            </button>
+                            <button class="filter-pill" onclick="setEnergyFilter('Energy source unknown')">
+                                ❓ Unknown
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Charger Type Filters -->
+                    <div class="filter-group">
+                        <span class="filter-title">Charger Speed & Power</span>
+                        <div class="filter-pills" id="charger-filter-group">
+                            <button class="filter-pill active" data-type="blue" onclick="setChargerFilter('all')">
+                                All
+                            </button>
+                            <button class="filter-pill" data-type="blue" onclick="setChargerFilter('CCS2')">
+                                <i class="fa-solid fa-bolt"></i> CCS2 (DC Fast)
+                            </button>
+                            <button class="filter-pill" data-type="blue" onclick="setChargerFilter('Type 2')">
+                                <i class="fa-solid fa-plug"></i> Type 2 (AC)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Geolocation Card -->
+                    <div class="location-card">
+                        <h3><i class="fa-solid fa-location-crosshairs" style="color: var(--accent-blue);"></i> Set GPS Location</h3>
+                        <p>Allow browser GPS to locate greenest stations in your immediate vicinity. If blocked, a default coordinates system is used.</p>
+                        <button class="btn-primary" id="btn-gps" onclick="requestGPS()">
+                            <i class="fa-solid fa-location-dot"></i> Get Current Location
+                        </button>
+                    </div>
+
+                    <!-- Nearby Station Feed -->
+                    <div class="station-list-container">
+                        <h2 class="station-list-title">
+                            Nearby Stations
+                            <span class="station-count" id="station-list-count">0 stations</span>
+                        </h2>
+                        <div class="station-list" id="station-list" aria-live="polite">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Panel 2: AI Insights & Recommendation -->
+                <section class="tab-panel" id="panel-ai" role="tabpanel" aria-labelledby="tab-ai">
+                    <!-- AI Recommendation Panel -->
+                    <div class="ai-recommendation-panel" id="ai-rec-container">
+                        <div class="ai-header">
+                            <h2 class="ai-title">EcoMove Smart AI</h2>
+                            <span class="ai-badge">Best Match</span>
+                        </div>
+                        <p class="ai-desc" id="ai-rec-explanation">
+                            Detecting your location to run a renewable-awareness comparison. Standard Indian grid baseline produces ~700g CO₂/kWh.
+                        </p>
+                        <div id="ai-rec-card-slot">
+                            <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                                <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 20px; margin-bottom: 8px;"></i>
+                                <p>Waiting for GPS coordinates...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Carbon Impact Calculator Dashboard -->
+                    <div class="carbon-dashboard-card">
+                        <h3 class="filter-title"><i class="fa-solid fa-chart-line"></i> Cumulative Carbon Savings</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
+                            Estimated carbon saved by choosing renewable/hybrid charging compared to standard grid.
+                        </p>
+                        
+                        <div class="stat-grid" style="margin-top: 8px;">
+                            <div class="stat-item">
+                                <div class="stat-val" id="stat-carbon-intensity">--</div>
+                                <div class="stat-lbl">Avg Carbon Intensity (g/kWh)</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-val blue" id="stat-co2-saved">--</div>
+                                <div class="stat-lbl">CO₂ Reduction (kg/40kWh)</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-container" style="margin-top: 12px;">
+                            <canvas id="carbon-chart" aria-label="CO₂ comparison chart" role="img"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Alert Feed -->
+                    <div class="filter-group">
+                        <span class="filter-title">Real-Time Renewable Alerts</span>
+                        <div class="alert-feed" id="alert-feed-container">
+                            <div class="alert-item alert-green">
+                                <div class="alert-dot"></div>
+                                <div>
+                                    <strong>Bengaluru:</strong> Solar-to-Grid generation exceeds 60% capacity at Electronic City Hub. Charging recommended now.
+                                </div>
+                            </div>
+                            <div class="alert-item alert-warn">
+                                <div class="alert-dot"></div>
+                                <div>
+                                    <strong>Delhi NCR:</strong> Solar generation dipping due to cloud cover. Stations reverting to backup hybrid grid mode.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Panel 3: Data Tools & CSV import -->
+                <section class="tab-panel" id="panel-data" role="tabpanel" aria-labelledby="tab-data">
+                    <div class="carbon-dashboard-card">
+                        <h3 class="filter-title"><i class="fa-solid fa-file-csv"></i> CSV Dataset Import</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 8px;">
+                            Add charging stations dynamically. Upload a CSV file matching our database schema.
+                        </p>
+                        
+                        <div class="upload-drag-area" id="csv-drag-area" onclick="triggerFileInput('csv-file-input')">
+                            <i class="fa-solid fa-file-arrow-up upload-icon"></i>
+                            <span class="upload-text">Click or drag & drop CSV file</span>
+                            <span class="upload-subtext">Must contain headers: name, latitude, longitude, state, energySource...</span>
+                            <input type="file" id="csv-file-input" style="display: none;" accept=".csv" onchange="handleFileSelect(event, 'csv')">
+                        </div>
+
+                        <button class="btn-outline" style="width: 100%; margin-top: 10px;" onclick="downloadSampleCSV()">
+                            <i class="fa-solid fa-download"></i> Download Sample CSV Template
+                        </button>
+                    </div>
+
+                    <div class="carbon-dashboard-card">
+                        <h3 class="filter-title"><i class="fa-solid fa-paste"></i> Paste CSV / JSON Records</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 8px;">
+                            Paste station data formatted as raw comma-separated values or JSON arrays.
+                        </p>
+                        <textarea id="import-text" class="search-input" style="height: 120px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="name,latitude,longitude,city,state,energySource&#10;Tata Power Hybrid,13.08,80.27,Chennai,Tamil Nadu,Solar + Grid"></textarea>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button class="btn-primary" style="flex: 1; font-size: 12px;" onclick="importRawText()">
+                                <i class="fa-solid fa-upload"></i> Process Import
+                            </button>
+                            <button class="btn-outline" style="flex: 1; font-size: 12px;" onclick="clearImportText()">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="carbon-dashboard-card">
+                        <h3 class="filter-title"><i class="fa-solid fa-file-export"></i> Backup & Export Database</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 8px;">
+                            Download the current charging station directory (including imported items).
+                        </p>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-outline" style="flex: 1;" onclick="exportData('json')">
+                                <i class="fa-solid fa-file-code"></i> Export JSON
+                            </button>
+                            <button class="btn-outline" style="flex: 1;" onclick="exportData('csv')">
+                                <i class="fa-solid fa-file-excel"></i> Export CSV
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </aside>
+
+        <!-- Map Viewport -->
+        <main class="map-container" role="main">
+            <div id="map"></div>
+
+            <!-- Floating Top Widgets -->
+            <div class="map-widget widget-top-right" role="toolbar" aria-label="Map Utilities">
+                <button class="btn-outline" style="background: var(--bg-surface); padding: 8px 12px;" title="Reset Map View" onclick="resetMapView()">
+                    <i class="fa-solid fa-house-chimney"></i> Re-center
+                </button>
+                <button class="btn-outline" style="background: var(--bg-surface); padding: 8px 12px;" title="Help & Documentation" onclick="toggleModal('help-modal', true)">
+                    <i class="fa-solid fa-circle-question"></i> Help
+                </button>
+            </div>
+
+            <!-- Floating Map Legend -->
+            <div class="map-widget widget-bottom-right" role="region" aria-label="Energy Source Legend">
+                <h3 class="widget-title"><i class="fa-solid fa-circle-info"></i> Energy Classification</h3>
+                <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
+                        <span style="display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-location-pin" style="color: var(--color-solar);"></i> Solar / Solar + Battery</span>
+                        <span style="font-size: 10px; color: var(--accent-green); font-weight: 600;">Pure Green</span>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
+                        <span style="display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-location-pin" style="color: var(--color-wind);"></i> Verified Wind / Renewable</span>
+                        <span style="font-size: 10px; color: var(--accent-green); font-weight: 600;">Pure Green</span>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
+                        <span style="display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-location-pin" style="color: #10b981;"></i> Solar + Grid (Hybrid)</span>
+                        <span style="font-size: 10px; color: #22d3ee; font-weight: 600;">Medium</span>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
+                        <span style="display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-location-pin" style="color: var(--color-grid);"></i> Standard Grid</span>
+                        <span style="font-size: 10px; color: #f87171;">Coal/Gas heavy</span>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
+                        <span style="display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-location-pin" style="color: var(--color-unknown);"></i> Energy Source Unknown</span>
+                        <span style="font-size: 10px; color: var(--text-muted);">Baseline</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Detailed Drawer Panel for selected station -->
+        <article class="details-drawer" id="detail-drawer" aria-labelledby="drawer-station-name">
+            <header class="drawer-header">
+                <div>
+                    <h2 id="drawer-station-name" style="font-size: 18px; color: #ffffff; font-weight: 700; margin-bottom: 4px;">Station Details</h2>
+                    <span id="drawer-station-operator" style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">Operator</span>
+                </div>
+                <button class="drawer-close" aria-label="Close station details" onclick="closeDrawer()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+            
+            <div class="drawer-body">
+                <!-- Grid metrics -->
+                <div class="stat-grid">
+                    <div class="stat-item" style="background-color: rgba(255,255,255,0.01);">
+                        <div class="stat-val" id="drawer-power">--</div>
+                        <div class="stat-lbl">Charging Power</div>
+                    </div>
+                    <div class="stat-item" style="background-color: rgba(255,255,255,0.01);">
+                        <div class="stat-val blue" id="drawer-carbon-intensity">--</div>
+                        <div class="stat-lbl">Carbon (g CO₂/kWh)</div>
+                    </div>
+                </div>
+
+                <!-- Fields -->
+                <div class="detail-row">
+                    <div class="detail-icon"><i class="fa-solid fa-map-pin"></i></div>
+                    <div class="detail-info">
+                        <span class="detail-label">Address</span>
+                        <span class="detail-val" id="drawer-address">--</span>
+                    </div>
+                </div>
+
+                <div class="detail-row">
+                    <div class="detail-icon"><i class="fa-solid fa-city"></i></div>
+                    <div class="detail-info">
+                        <span class="detail-label">Location (City, State)</span>
+                        <span class="detail-val" id="drawer-city-state">--</span>
+                    </div>
+                </div>
+
+                <div class="detail-row">
+                    <div class="detail-icon"><i class="fa-solid fa-bolt"></i></div>
+                    <div class="detail-info">
+                        <span class="detail-label">Charger Type</span>
+                        <span class="detail-val" id="drawer-type">--</span>
+                    </div>
+                </div>
+
+                <div class="detail-row">
+                    <div class="detail-icon"><i class="fa-solid fa-circle-nodes"></i></div>
+                    <div class="detail-info">
+                        <span class="detail-label">Energy Source Status</span>
+                        <span class="detail-val" id="drawer-energy-source">--</span>
+                    </div>
+                </div>
+
+                <div class="detail-row">
+                    <div class="detail-icon"><i class="fa-solid fa-circle-check" id="drawer-status-icon" style="color: var(--accent-green);"></i></div>
+                    <div class="detail-info">
+                        <span class="detail-label">Availability / Status</span>
+                        <span class="detail-val" id="drawer-availability">--</span>
+                    </div>
+                </div>
+
+                <!-- Green Score card -->
+                <div class="ai-recommendation-panel" style="margin-top: 10px;" id="drawer-carbon-badge-panel">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-weight: 700; color: #ffffff;">Renewable Classification</span>
+                        <span class="energy-badge badge-pure-renewable" id="drawer-classification">Pure Green</span>
+                    </div>
+                    <p class="ai-desc" id="drawer-carbon-description" style="margin-top: 6px;">
+                        Carbon description here.
+                    </p>
+                    <div class="carbon-gauge">
+                        <span style="font-size: 12px; color: var(--text-secondary);">CO₂ Saved (vs baseline):</span>
+                        <strong style="color: var(--accent-green); font-size: 15px;" id="drawer-co2-savings">--</strong>
+                    </div>
+                </div>
+
+                <div class="alert-item alert-warn" id="drawer-alerts-box" style="display: none;">
+                    <div class="alert-dot"></div>
+                    <div id="drawer-alerts-text">
+                        Station live status alerts.
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- Help Modal Dialog -->
+        <div class="modal-overlay" id="help-modal">
+            <div class="modal-content" role="document">
+                <header class="modal-header">
+                    <h2 class="modal-title"><i class="fa-solid fa-circle-question" style="color: var(--accent-green);"></i> EcoMove AI Documentation</h2>
+                    <button class="drawer-close" onclick="toggleModal('help-modal', false)">&times;</button>
+                </header>
+                <div class="modal-body">
+                    <h3>Carbon-Intensity Calculation Methodology</h3>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                        EcoMove AI estimates carbon intensity (measured in <strong>grams of CO₂ equivalent per kilowatt-hour</strong> or <strong>g CO₂/kWh</strong>) based on the energy source powering each charging station:
+                    </p>
+                    <ul style="font-size: 13px; color: var(--text-secondary); margin-left: 20px; line-height: 1.6;">
+                        <li><strong>☀️ Solar-powered (30 g/kWh):</strong> Near-zero life-cycle emissions from solar PV cells.</li>
+                        <li><strong>🔋 Solar + Battery (45 g/kWh):</strong> Rooftop solar with energy storage batteries, providing clean power 24/7.</li>
+                        <li><strong>🌬️ Wind / Verified Renewable (25 g/kWh):</strong> Backed by PPA contracts, wind farms, or certified green tariff certificates.</li>
+                        <li><strong>☀️🔌 Solar + Grid Hybrid (350 g/kWh):</strong> Combination of on-site solar and standard grid electricity.</li>
+                        <li><strong>🔌 Grid-Connected (420 - 820 g/kWh):</strong> Relies solely on state-level grid parameters. Coal-heavy states like West Bengal rank higher (~820g) than hydro/renewables-rich states like Kerala (~420g).</li>
+                        <li><strong>❓ Energy Source Unknown:</strong> Handled using the conservative Indian grid average baseline (~700g CO₂/kWh).</li>
+                    </ul>
+                    <hr style="border: 0; border-top: 1px solid var(--border-color);">
+                    <h3>How to Import CSV Datasets</h3>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                        To bulk load or update charging stations, format your files using the column headers shown below:
+                    </p>
+                    <code style="display: block; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: var(--radius-sm); font-size: 11px; font-family: monospace; color: var(--accent-blue);">
+                        id,name,operator,address,city,state,latitude,longitude,chargerType,chargingPower,availability,energySource
+                    </code>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                        Possible values for <code>energySource</code>: Solar-powered, Solar + Battery, Wind / verified renewable supply, Solar + Grid, Grid-connected, Energy source unknown.
+                    </p>
+                </div>
+                <footer class="modal-footer">
+                    <button class="btn-primary" onclick="toggleModal('help-modal', false)">Got It</button>
+                </footer>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Dependencies -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- App Script Modules -->
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
